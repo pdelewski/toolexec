@@ -5,7 +5,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 )
 
@@ -47,17 +46,27 @@ func main() {
 	argsLen := len(args)
 	for i, a := range args {
 		if a == "-o" {
-			f.WriteString(strconv.Itoa(i) + ":" + a)
-			f.WriteString("\n")
-			f.WriteString(filepath.Dir(string(args[i+1])))
+			f.WriteString("dest path:" + filepath.Dir(string(args[i+1])))
 			f.WriteString("\n")
 		}
 		if a == "-pack" {
+			pathReported := false
 			for j := i + 1; j < argsLen; j++ {
 				if string(args[j]) == "-asmhdr" {
 					j = j + 2
 				}
-				f.WriteString(string(args[j]))
+				if !strings.HasSuffix(args[j], ".go") {
+					continue
+				}
+				filename := filepath.Base(args[j])
+				p := filepath.Dir(args[j])
+				_ = p
+				if !pathReported {
+					f.WriteString("src path:" + p)
+					f.WriteString("\n")
+					pathReported = true
+				}
+				f.WriteString(filename)
 				f.WriteString("\n")
 			}
 		}
