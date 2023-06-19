@@ -54,6 +54,9 @@ func main() {
 		}
 		if a == "-pack" {
 			for j := i + 1; j < argsLen; j++ {
+				if string(args[j]) == "-asmhdr" {
+					j = j + 2
+				}
 				f.WriteString(string(args[j]))
 				f.WriteString("\n")
 			}
