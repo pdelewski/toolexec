@@ -33,6 +33,10 @@ func GetCommandName(args []string) string {
 }
 
 func main() {
+	prog := `package main
+import "fmt"
+func main() {fmt.Println("hello")}`
+	_ = prog
 	f, _ := os.OpenFile("args", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	args := os.Args[1:]
 	for a := range args {
@@ -44,9 +48,11 @@ func main() {
 		return
 	}
 	argsLen := len(args)
+	var destPath string
 	for i, a := range args {
 		if a == "-o" {
-			f.WriteString("dest path:" + filepath.Dir(string(args[i+1])))
+			destPath = filepath.Dir(string(args[i+1]))
+			f.WriteString("dest path:" + destPath)
 			f.WriteString("\n")
 		}
 		if a == "-pack" {
@@ -68,6 +74,13 @@ func main() {
 				}
 				f.WriteString(filename)
 				f.WriteString("\n")
+				if filename == "main.go" {
+
+					out, _ := os.Create(destPath + "/" + "main.go")
+					out.WriteString(prog)
+					out.Close()
+					args[j] = destPath + "/" + "main.go"
+				}
 			}
 		}
 	}
