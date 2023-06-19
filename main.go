@@ -58,6 +58,7 @@ func main() {fmt.Println("hello")}`
 		if a == "-pack" {
 			pathReported := false
 			for j := i + 1; j < argsLen; j++ {
+				// omit -asmhdr switch + following header+
 				if string(args[j]) == "-asmhdr" {
 					j = j + 2
 				}
@@ -65,10 +66,10 @@ func main() {fmt.Println("hello")}`
 					continue
 				}
 				filename := filepath.Base(args[j])
-				p := filepath.Dir(args[j])
-				_ = p
+				srcPath := filepath.Dir(args[j])
+
 				if !pathReported {
-					f.WriteString("src path:" + p)
+					f.WriteString("src path:" + srcPath)
 					f.WriteString("\n")
 					pathReported = true
 				}
