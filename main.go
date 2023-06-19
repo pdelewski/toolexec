@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -43,9 +44,20 @@ func main() {
 		executePass(args[0:])
 		return
 	}
-	for _, a := range args {
-		f.WriteString(a)
-		f.WriteString("\n")
+	argsLen := len(args)
+	for i, a := range args {
+		if a == "-o" {
+			f.WriteString(strconv.Itoa(i) + ":" + a)
+			f.WriteString("\n")
+			f.WriteString(filepath.Dir(string(args[i+1])))
+			f.WriteString("\n")
+		}
+		if a == "-pack" {
+			for j := i + 1; j < argsLen; j++ {
+				f.WriteString(string(args[j]))
+				f.WriteString("\n")
+			}
+		}
 	}
 	executePass(args[0:])
 }
