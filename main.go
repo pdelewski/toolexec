@@ -2,6 +2,10 @@ package main
 
 import (
 	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
+	//	"golang.org/x/tools/go/packages"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -30,6 +34,43 @@ func GetCommandName(args []string) string {
 		cmd = strings.TrimSuffix(cmd, ext)
 	}
 	return cmd
+}
+
+// LoadMode. Tells about needed information during analysis.
+/*
+const LoadMode packages.LoadMode = packages.NeedName |
+	packages.NeedTypes |
+	packages.NeedSyntax |
+	packages.NeedTypesInfo |
+	packages.NeedFiles |
+	packages.NeedImports
+
+func getPkgs(projectPath string, packagePattern string, fset *token.FileSet) ([]*packages.Package, error) {
+	var packageSet []*packages.Package
+
+	cfg := &packages.Config{Fset: fset, Mode: LoadMode, Dir: projectPath}
+	pkgs, err := packages.Load(cfg, packagePattern)
+
+	if err != nil {
+		return nil, err
+	}
+	for _, pkg := range pkgs {
+		fmt.Println("\t", pkg)
+		packageSet = append(packageSet, pkg)
+	}
+
+	return packageSet, nil
+}
+*/
+
+func parseFile(file *ast.File) {
+	ast.Inspect(file, func(n ast.Node) bool {
+		if funDeclNode, ok := n.(*ast.FuncDecl); ok {
+			fmt.Println("FuncDecl:", funDeclNode.Name)
+
+		}
+		return true
+	})
 }
 
 func main() {
@@ -67,7 +108,16 @@ func main() {fmt.Println("hello")}`
 				}
 				filename := filepath.Base(args[j])
 				srcPath := filepath.Dir(args[j])
-
+				fset := token.NewFileSet()
+				_ = fset
+				// pkgs, _ := getPkgs(srcPath, "./...", fset)
+				// _ = pkgs
+				file, err := parser.ParseFile(fset, args[j], nil, 0)
+				if err != nil {
+					fmt.Println(err)
+				}
+				_ = file
+				parseFile(file)
 				if !pathReported {
 					f.WriteString("src path:" + srcPath)
 					f.WriteString("\n")
