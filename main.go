@@ -3,9 +3,10 @@ package main
 import (
 	"fmt"
 	"go/ast"
+	"go/importer"
 	"go/parser"
 	"go/token"
-	//	"golang.org/x/tools/go/packages"
+	"go/types"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -36,38 +37,34 @@ func GetCommandName(args []string) string {
 	return cmd
 }
 
-// LoadMode. Tells about needed information during analysis.
-/*
-const LoadMode packages.LoadMode = packages.NeedName |
-	packages.NeedTypes |
-	packages.NeedSyntax |
-	packages.NeedTypesInfo |
-	packages.NeedFiles |
-	packages.NeedImports
-
-func getPkgs(projectPath string, packagePattern string, fset *token.FileSet) ([]*packages.Package, error) {
-	var packageSet []*packages.Package
-
-	cfg := &packages.Config{Fset: fset, Mode: LoadMode, Dir: projectPath}
-	pkgs, err := packages.Load(cfg, packagePattern)
-
+func parseFile(filePath string) {
+	fset := token.NewFileSet()
+	_ = fset
+	file, err := parser.ParseFile(fset, filePath, nil, 0)
 	if err != nil {
-		return nil, err
+		fmt.Println(err)
 	}
-	for _, pkg := range pkgs {
-		fmt.Println("\t", pkg)
-		packageSet = append(packageSet, pkg)
-	}
+	_ = file
+	srcPath := filepath.Dir(filePath)
+	conf := types.Config{Importer: importer.Default()}
+	pkg, err := conf.Check(srcPath, fset, []*ast.File{file}, nil)
+	_ = pkg
 
-	return packageSet, nil
-}
-*/
+	fmt.Printf("Package  %q\n", pkg.Path())
+	fmt.Printf("Name:    %s\n", pkg.Name())
+	fmt.Printf("Imports: %s\n", pkg.Imports())
+	fmt.Printf("Scope:   %s\n", pkg.Scope())
 
-func parseFile(file *ast.File) {
 	ast.Inspect(file, func(n ast.Node) bool {
 		if funDeclNode, ok := n.(*ast.FuncDecl); ok {
-			fmt.Println("FuncDecl:", funDeclNode.Name)
+			fmt.Println("FuncDecl:", file.Name.Name, ":", funDeclNode.Name)
 
+		}
+		if callExpr, ok := n.(*ast.CallExpr); ok {
+			if id, ok := callExpr.Fun.(*ast.Ident); ok {
+				fmt.Println("CallExpr:", file.Name.Name, ":", id)
+
+			}
 		}
 		return true
 	})
@@ -106,18 +103,10 @@ func main() {fmt.Println("hello")}`
 				if !strings.HasSuffix(args[j], ".go") {
 					continue
 				}
-				filename := filepath.Base(args[j])
-				srcPath := filepath.Dir(args[j])
-				fset := token.NewFileSet()
-				_ = fset
-				// pkgs, _ := getPkgs(srcPath, "./...", fset)
-				// _ = pkgs
-				file, err := parser.ParseFile(fset, args[j], nil, 0)
-				if err != nil {
-					fmt.Println(err)
-				}
-				_ = file
-				parseFile(file)
+				filePath := args[j]
+				filename := filepath.Base(filePath)
+				srcPath := filepath.Dir(filePath)
+				parseFile(filePath)
 				if !pathReported {
 					f.WriteString("src path:" + srcPath)
 					f.WriteString("\n")
