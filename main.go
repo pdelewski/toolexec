@@ -37,6 +37,13 @@ func GetCommandName(args []string) string {
 	return cmd
 }
 
+func printPackageInfo(pkg *types.Package) {
+	fmt.Printf("Package  %q\n", pkg.Path())
+	fmt.Printf("Name:    %s\n", pkg.Name())
+	// fmt.Printf("Imports: %s\n", pkg.Imports())
+	// fmt.Printf("Scope:   %s\n", pkg.Scope())
+}
+
 func parseFile(filePath string) {
 	fset := token.NewFileSet()
 	_ = fset
@@ -50,19 +57,17 @@ func parseFile(filePath string) {
 	pkg, err := conf.Check(srcPath, fset, []*ast.File{file}, nil)
 	_ = pkg
 
-	fmt.Printf("Package  %q\n", pkg.Path())
-	fmt.Printf("Name:    %s\n", pkg.Name())
-	fmt.Printf("Imports: %s\n", pkg.Imports())
-	fmt.Printf("Scope:   %s\n", pkg.Scope())
-
 	ast.Inspect(file, func(n ast.Node) bool {
 		if funDeclNode, ok := n.(*ast.FuncDecl); ok {
 			fmt.Println("FuncDecl:", file.Name.Name, ":", funDeclNode.Name)
+			printPackageInfo(pkg)
+			//	fmt.Println("Def:", pkg.TypesInfo.Defs[funDeclNode.Name].Name())
 
 		}
 		if callExpr, ok := n.(*ast.CallExpr); ok {
 			if id, ok := callExpr.Fun.(*ast.Ident); ok {
 				fmt.Println("CallExpr:", file.Name.Name, ":", id)
+				printPackageInfo(pkg)
 
 			}
 		}
