@@ -53,22 +53,38 @@ func parseFile(filePath string) {
 	}
 	_ = file
 	srcPath := filepath.Dir(filePath)
+	info := &types.Info{
+		Defs:       make(map[*ast.Ident]types.Object),
+		Uses:       make(map[*ast.Ident]types.Object),
+		Selections: make(map[*ast.SelectorExpr]*types.Selection),
+	}
 	conf := types.Config{Importer: importer.Default()}
-	pkg, err := conf.Check(srcPath, fset, []*ast.File{file}, nil)
+	pkg, err := conf.Check(srcPath, fset, []*ast.File{file}, info)
 	_ = pkg
 
 	ast.Inspect(file, func(n ast.Node) bool {
 		if funDeclNode, ok := n.(*ast.FuncDecl); ok {
-			fmt.Println("FuncDecl:", file.Name.Name, ":", funDeclNode.Name)
+			fmt.Println("FuncDecl:", file.Name.Name, ".", funDeclNode.Name)
 			printPackageInfo(pkg)
 			//	fmt.Println("Def:", pkg.TypesInfo.Defs[funDeclNode.Name].Name())
-
+			fmt.Printf("%s: %q defines %v\n",
+				fset.Position(funDeclNode.Pos()), funDeclNode.Name, info.Defs[funDeclNode.Name])
 		}
 		if callExpr, ok := n.(*ast.CallExpr); ok {
 			if id, ok := callExpr.Fun.(*ast.Ident); ok {
 				fmt.Println("CallExpr:", file.Name.Name, ":", id)
 				printPackageInfo(pkg)
-
+				if info.Uses[id] != nil {
+					fmt.Printf("%s: %q uses %v\n",
+						fset.Position(id.Pos()), id.Name, info.Uses[id])
+				}
+			}
+			if sel, ok := callExpr.Fun.(*ast.SelectorExpr); ok {
+				obj := info.Selections[sel]
+				if obj != nil {
+					fmt.Printf("%s: %q uses sel %v\n",
+						fset.Position(obj.Obj().Pos()), obj.Obj().Name(), obj.Obj().Type().String())
+				}
 			}
 		}
 		return true
