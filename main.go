@@ -95,70 +95,75 @@ func printPackageInfo(pkg *types.Package) {
 	// fmt.Printf("Scope:   %s\n", pkg.Scope())
 }
 
-func parseFile(filePath string, f *os.File) {
+func parseFile(filePaths []string, f *os.File) {
 	fset := token.NewFileSet()
 	_ = fset
-	file, err := parser.ParseFile(fset, filePath, nil, 0)
-	if err != nil {
-		f.WriteString(err.Error())
-		f.WriteString("\n")
-	}
-	_ = file
-	srcPath := filepath.Dir(filePath)
 	info := &types.Info{
 		Defs:       make(map[*ast.Ident]types.Object),
 		Uses:       make(map[*ast.Ident]types.Object),
 		Selections: make(map[*ast.SelectorExpr]*types.Selection),
 	}
+	var files []*ast.File
+	for _, filePath := range filePaths {
+		file, err := parser.ParseFile(fset, filePath, nil, 0)
+		if err != nil {
+			f.WriteString(err.Error())
+			f.WriteString("\n")
+		}
+		files = append(files, file)
+	}
+
+	srcPath := filepath.Dir(filePaths[0])
 	conf := types.Config{Importer: importer.Default()}
-	pkg, err := conf.Check(srcPath, fset, []*ast.File{file}, info)
+	pkg, err := conf.Check(srcPath, fset, files, info)
 	if err != nil {
 		f.WriteString(err.Error())
 		f.WriteString("\n")
 	}
 	_ = pkg
-
-	ast.Inspect(file, func(n ast.Node) bool {
-		if funDeclNode, ok := n.(*ast.FuncDecl); ok {
-			f.WriteString("FuncDecl:" + file.Name.Name + "." + funDeclNode.Name.String())
-			f.WriteString("\n")
-			//printPackageInfo(pkg)
-			funType := info.Defs[funDeclNode.Name].Type()
-			var fTypeStr string
-			if funType != nil {
-				fTypeStr = funType.String()
-			}
-			f.WriteString("FuncDecl " +
-				fset.Position(funDeclNode.Pos()).String() + " " + funDeclNode.Name.String() + " " + fTypeStr)
-			f.WriteString("\n")
-		}
-		if callExpr, ok := n.(*ast.CallExpr); ok {
-			if id, ok := callExpr.Fun.(*ast.Ident); ok {
-				f.WriteString("CallExpr:" + file.Name.Name + ":" + id.Name)
+	for _, file := range files {
+		ast.Inspect(file, func(n ast.Node) bool {
+			if funDeclNode, ok := n.(*ast.FuncDecl); ok {
+				f.WriteString("FuncDecl:" + file.Name.Name + "." + funDeclNode.Name.String())
 				f.WriteString("\n")
 				//printPackageInfo(pkg)
-				if info.Uses[id] != nil {
-					f.WriteString("CallExpr " +
-						fset.Position(id.Pos()).String() + " " + id.Name + " " + info.Uses[id].String())
+				funType := info.Defs[funDeclNode.Name].Type()
+				var fTypeStr string
+				if funType != nil {
+					fTypeStr = funType.String()
 				}
+				f.WriteString("FuncDecl " +
+					fset.Position(funDeclNode.Pos()).String() + " " + funDeclNode.Name.String() + " " + fTypeStr)
+				f.WriteString("\n")
 			}
-			if sel, ok := callExpr.Fun.(*ast.SelectorExpr); ok {
-				obj := info.Selections[sel]
+			if callExpr, ok := n.(*ast.CallExpr); ok {
+				if id, ok := callExpr.Fun.(*ast.Ident); ok {
+					f.WriteString("CallExpr:" + file.Name.Name + ":" + id.Name)
+					f.WriteString("\n")
+					//printPackageInfo(pkg)
+					if info.Uses[id] != nil {
+						f.WriteString("CallExpr " +
+							fset.Position(id.Pos()).String() + " " + id.Name + " " + info.Uses[id].String())
+					}
+				}
+				if sel, ok := callExpr.Fun.(*ast.SelectorExpr); ok {
+					obj := info.Selections[sel]
 
-				if sel.Sel != nil && info.Uses[sel.Sel] != nil {
-					f.WriteString("Qualified " + info.Uses[sel.Sel].Name() + " " + info.Uses[sel.Sel].Type().String())
-					f.WriteString("\n")
-				}
-				if obj != nil {
-					f.WriteString("CallExpr " + fset.Position(obj.Obj().Pos()).String() + " " + obj.Obj().Name() +
-						" uses sel " + info.Uses[GetMostInnerAstIdent(sel)].Type().String() +
-						" " + obj.Obj().Type().String())
-					f.WriteString("\n")
+					if sel.Sel != nil && info.Uses[sel.Sel] != nil {
+						f.WriteString("Qualified " + info.Uses[sel.Sel].Name() + " " + info.Uses[sel.Sel].Type().String())
+						f.WriteString("\n")
+					}
+					if obj != nil {
+						f.WriteString("CallExpr " + fset.Position(obj.Obj().Pos()).String() + " " + obj.Obj().Name() +
+							" uses sel " + //+ info.Uses[GetMostInnerAstIdent(sel)].Type().String() +
+							" " + obj.Obj().Type().String())
+						f.WriteString("\n")
+					}
 				}
 			}
-		}
-		return true
-	})
+			return true
+		})
+	}
 }
 
 func main() {
@@ -184,6 +189,7 @@ func main() {fmt.Println("hello")}`
 		}
 		if a == "-pack" {
 			pathReported := false
+			var files []string
 			for j := i + 1; j < argsLen; j++ {
 				// omit -asmhdr switch + following header+
 				if string(args[j]) == "-asmhdr" {
@@ -209,8 +215,10 @@ func main() {fmt.Println("hello")}`
 					out.Close()
 					args[j] = destPath + "/" + "main.go"
 				}
-				parseFile(filePath, f)
+				files = append(files, filePath)
 			}
+			parseFile(files, f)
+
 		}
 	}
 	executePass(args[0:])
