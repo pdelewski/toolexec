@@ -95,7 +95,51 @@ func printPackageInfo(pkg *types.Package) {
 	// fmt.Printf("Scope:   %s\n", pkg.Scope())
 }
 
-func parseFile(filePaths []string, f *os.File) {
+func inspectFuncs(file *ast.File, fset *token.FileSet, info *types.Info, f *os.File) {
+	ast.Inspect(file, func(n ast.Node) bool {
+		if funDeclNode, ok := n.(*ast.FuncDecl); ok {
+			f.WriteString("FuncDecl:" + file.Name.Name + "." + funDeclNode.Name.String())
+			f.WriteString("\n")
+			//printPackageInfo(pkg)
+			funType := info.Defs[funDeclNode.Name].Type()
+			var fTypeStr string
+			if funType != nil {
+				fTypeStr = funType.String()
+			}
+			f.WriteString("FuncDecl " +
+				fset.Position(funDeclNode.Pos()).String() + " " + funDeclNode.Name.String() + " " + fTypeStr)
+			f.WriteString("\n")
+		}
+		if callExpr, ok := n.(*ast.CallExpr); ok {
+			if id, ok := callExpr.Fun.(*ast.Ident); ok {
+				f.WriteString("CallExpr:" + file.Name.Name + ":" + id.Name)
+				f.WriteString("\n")
+				//printPackageInfo(pkg)
+				if info.Uses[id] != nil {
+					f.WriteString("CallExpr " +
+						fset.Position(id.Pos()).String() + " " + id.Name + " " + info.Uses[id].String())
+				}
+			}
+			if sel, ok := callExpr.Fun.(*ast.SelectorExpr); ok {
+				obj := info.Selections[sel]
+
+				if sel.Sel != nil && info.Uses[sel.Sel] != nil {
+					f.WriteString("Qualified " + info.Uses[sel.Sel].Name() + " " + info.Uses[sel.Sel].Type().String())
+					f.WriteString("\n")
+				}
+				if obj != nil {
+					f.WriteString("CallExpr " + fset.Position(obj.Obj().Pos()).String() + " " + obj.Obj().Name() +
+						" uses sel " + //+ info.Uses[GetMostInnerAstIdent(sel)].Type().String() +
+						" " + obj.Obj().Type().String())
+					f.WriteString("\n")
+				}
+			}
+		}
+		return true
+	})
+}
+
+func analyzePackage(filePaths []string, f *os.File) {
 	fset := token.NewFileSet()
 	_ = fset
 	info := &types.Info{
@@ -122,47 +166,7 @@ func parseFile(filePaths []string, f *os.File) {
 	}
 	_ = pkg
 	for _, file := range files {
-		ast.Inspect(file, func(n ast.Node) bool {
-			if funDeclNode, ok := n.(*ast.FuncDecl); ok {
-				f.WriteString("FuncDecl:" + file.Name.Name + "." + funDeclNode.Name.String())
-				f.WriteString("\n")
-				//printPackageInfo(pkg)
-				funType := info.Defs[funDeclNode.Name].Type()
-				var fTypeStr string
-				if funType != nil {
-					fTypeStr = funType.String()
-				}
-				f.WriteString("FuncDecl " +
-					fset.Position(funDeclNode.Pos()).String() + " " + funDeclNode.Name.String() + " " + fTypeStr)
-				f.WriteString("\n")
-			}
-			if callExpr, ok := n.(*ast.CallExpr); ok {
-				if id, ok := callExpr.Fun.(*ast.Ident); ok {
-					f.WriteString("CallExpr:" + file.Name.Name + ":" + id.Name)
-					f.WriteString("\n")
-					//printPackageInfo(pkg)
-					if info.Uses[id] != nil {
-						f.WriteString("CallExpr " +
-							fset.Position(id.Pos()).String() + " " + id.Name + " " + info.Uses[id].String())
-					}
-				}
-				if sel, ok := callExpr.Fun.(*ast.SelectorExpr); ok {
-					obj := info.Selections[sel]
-
-					if sel.Sel != nil && info.Uses[sel.Sel] != nil {
-						f.WriteString("Qualified " + info.Uses[sel.Sel].Name() + " " + info.Uses[sel.Sel].Type().String())
-						f.WriteString("\n")
-					}
-					if obj != nil {
-						f.WriteString("CallExpr " + fset.Position(obj.Obj().Pos()).String() + " " + obj.Obj().Name() +
-							" uses sel " + //+ info.Uses[GetMostInnerAstIdent(sel)].Type().String() +
-							" " + obj.Obj().Type().String())
-						f.WriteString("\n")
-					}
-				}
-			}
-			return true
-		})
+		inspectFuncs(file, fset, info, f)
 	}
 }
 
@@ -217,7 +221,7 @@ func main() {fmt.Println("hello")}`
 				}
 				files = append(files, filePath)
 			}
-			parseFile(files, f)
+			analyzePackage(files, f)
 
 		}
 	}
