@@ -60,6 +60,9 @@ func parseFile(filePath string) {
 	}
 	conf := types.Config{Importer: importer.Default()}
 	pkg, err := conf.Check(srcPath, fset, []*ast.File{file}, info)
+	if err != nil {
+		fmt.Println(err)
+	}
 	_ = pkg
 
 	ast.Inspect(file, func(n ast.Node) bool {
