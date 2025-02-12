@@ -5,8 +5,6 @@ import (
 	"golang.org/x/sys/unix"
 	"os"
 	"os/exec"
-	"path/filepath"
-	"strings"
 )
 
 func executePass(args []string) {
@@ -19,18 +17,6 @@ func executePass(args []string) {
 	if e := cmd.Run(); e != nil {
 		fmt.Println(e)
 	}
-}
-
-func GetCommandName(args []string) string {
-	if len(args) == 0 {
-		return ""
-	}
-
-	cmd := filepath.Base(args[0])
-	if ext := filepath.Ext(cmd); ext != "" {
-		cmd = strings.TrimSuffix(cmd, ext)
-	}
-	return cmd
 }
 
 func lockFile(file *os.File) error {
@@ -55,10 +41,5 @@ func compile(args []string, f *os.File) {
 func main() {
 	f, _ := os.OpenFile("args", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	args := os.Args[1:]
-	cmdName := GetCommandName(args)
-	if cmdName != "compile" {
-		executePass(args[0:])
-		return
-	}
 	compile(args, f)
 }
